@@ -1,0 +1,192 @@
+DROP VIEW IF EXISTS flights_departing_specific_date;
+CREATE VIEW flights_departing_specific_date AS
+SELECT f.flight_id, f.scheduled_departure, f.departure_airport_id, f.arrival_airport_id, ai.airline_name
+FROM flights f
+JOIN airline ai ON f.airline_id = ai.airline_id
+WHERE f.scheduled_departure = '2023-05-18';
+select * from flights_departing_specific_date;
+
+
+drop view if exists upcoming_week_bookings;
+CREATE VIEW upcoming_week_bookings AS
+SELECT b.booking_id, b.passenger_id, b.booking_date
+FROM booking b
+WHERE b.booking_date >= CURRENT_DATE
+  AND b.booking_date < CURRENT_DATE + INTERVAL '7 days';
+select * from upcoming_week_bookings;
+
+
+drop view if exists top_5_popular_routes;
+CREATE VIEW top_5_popular_routes AS
+SELECT
+    f.departure_airport_id,
+    f.arrival_airport_id,
+    COUNT(b.booking_id) AS bookings_count
+FROM
+    flights f
+JOIN
+    booking b ON b.booking_id = f.flight_id
+GROUP BY
+    f.departure_airport_id, f.arrival_airport_id
+ORDER BY
+    bookings_count DESC
+LIMIT 5;
+select * from top_5_popular_routes;
+
+
+drop view if exists airline_flights;
+CREATE VIEW airline_flights AS
+SELECT
+    f.flight_id,
+    f.flight_no,
+    f.scheduled_departure,
+    f.scheduled_arrival,
+    f.departure_airport_id,
+    f.arrival_airport_id,
+    a.airline_name
+FROM
+    flights f
+JOIN
+    airline a ON f.airline_id = a.airline_id;
+SELECT * FROM airline_flights WHERE airline_name = 'NGL';
+
+
+
+
+CREATE OR REPLACE VIEW airline_flights AS
+SELECT
+    f.flight_id,
+    f.flight_no,
+    f.scheduled_departure,
+    f.scheduled_arrival,
+    f.departure_airport_id,
+    f.arrival_airport_id,
+    a.airline_name
+FROM
+    flights f
+JOIN
+    airline a ON f.airline_id = a.airline_id
+WHERE
+    f.scheduled_departure >= CURRENT_DATE
+    AND f.scheduled_departure < CURRENT_DATE + INTERVAL '7 days';
+
+SELECT * FROM airline_flights WHERE airline_name = 'SSL';
+
+
+
+drop view if exists delayed_flights;
+CREATE VIEW delayed_flights AS
+SELECT
+    flight_id,
+    flight_no,
+    scheduled_departure,
+    actual_departure,
+    departure_airport_id,
+    arrival_airport_id,
+    EXTRACT(HOUR FROM AGE(actual_departure, scheduled_departure)) AS delay_hours
+FROM
+    flights
+WHERE
+    actual_departure IS NOT NULL
+    AND AGE(actual_departure, scheduled_departure) > INTERVAL '24 hours';
+
+
+select * from delayed_flights;
+
+
+
+
+drop view if exists leffler_thompson_passengers;
+CREATE VIEW leffler_thompson_passengers AS
+SELECT
+    p.passenger_id,
+    CONCAT(p.first_name, ' ', p.last_name) AS full_name,
+    p.country_of_citizenship
+FROM
+    passengers p
+JOIN
+    booking b ON p.passenger_id = b.passenger_id
+WHERE
+    b.booking_platform = 'Lebsack-Green';
+select * from leffler_thompson_passengers;
+
+
+
+drop view if exists top_10_most_visited_countries;
+CREATE VIEW top_10_most_visited_countries AS
+SELECT
+    f.arriving_gate AS country,
+    COUNT(b.booking_id) AS visit_count
+FROM
+    booking b
+JOIN
+    flights f ON b.booking_id = f.flight_id
+GROUP BY
+    f.arriving_gate
+ORDER BY
+    visit_count DESC
+LIMIT 10;
+select * from top_10_most_visited_countries;
+
+
+
+
+
+drop view if exists top_10_most_visited_countries;
+CREATE OR REPLACE VIEW top_10_most_visited_countries AS
+SELECT
+    a.country AS country,
+    COUNT(b.booking_id) AS visit_count,
+    (SELECT ap.airport_name
+     FROM flights f2
+     JOIN airport ap ON f2.arrival_airport_id = ap.airport_id
+     JOIN booking b2 ON b2.booking_id = f2.flight_id
+     WHERE ap.country = a.country
+     GROUP BY ap.airport_name
+     ORDER BY COUNT(b2.booking_id) DESC
+     LIMIT 1) AS most_visited_airport
+FROM
+    booking b
+JOIN
+    flights f ON b.booking_id = f.flight_id
+JOIN
+    airport a ON f.arrival_airport_id = a.airport_id
+GROUP BY
+    a.country
+ORDER BY
+    visit_count DESC
+LIMIT 10;
+select * from top_10_most_visited_countries;
+
+
+
+
+drop view if exists top_3_old_passengers;
+create or replace view top_3_old_passengers as
+select passenger_id,first_name,last_name,country_of_citizenship,date_of_birth,
+age(date_of_birth) as age
+from passengers
+order by age(date_of_birth) desc
+limit 5;
+alter view top_3_old_passengers rename to top_5_old_passengers;
+
+
+CREATE VIEW avg_booking_price AS
+SELECT
+    p.passenger_id,
+    p.first_name,
+    p.last_name,
+    AVG(b.price) AS average_price
+FROM
+    passengers p
+JOIN
+    booking b ON p.passenger_id = b.passenger_id
+GROUP BY
+    p.passenger_id, p.first_name, p.last_name;
+
+CREATE VIEW avg_and_max_baggage AS
+SELECT
+    AVG(weight_in_kg) AS average_weight,
+    MAX(weight_in_kg) AS heaviest_baggage
+FROM
+    baggage;
